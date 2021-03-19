@@ -1,0 +1,72 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use autodie;
+
+use Digest::SHA();
+
+use constant FILES => ('local_policy.jar', 'US_export_policy.jar');
+
+my ($CMD, $UJCE_DIR, $JAVA_HOME) = @ARGV;
+
+my $SEC_LIB;
+if (-e "$JAVA_HOME/jre/lib/security/local_policy.jar") {
+	$SEC_LIB = "$JAVA_HOME/jre/lib/security";
+} else {
+	$SEC_LIB = "$JAVA_HOME/jre/lib/security/policy/unlimited";
+}
+if ($CMD eq 'check') {
+    for my $file (FILES) {
+	my $ujce_file = "$UJCE_DIR/$file";
+	my $java_file = "$SEC_LIB/$file";
+		exit(2) if not -f $ujce_file or not -f $java_file;
+		exit(1) if not are_these_files_identical($ujce_file, $java_file);
+    }
+} elsif ($CMD eq 'install') {
+    for my $file (FILES) {
+		my $ujce_file = "$UJCE_DIR/$file";
+		my $java_file = "$SEC_LIB/$file";
+		if (not are_these_files_identical($ujce_file, $java_file)) {
+			run_ok('cp', '-f', $java_file, "${java_file}.orig");
+			run_ok('cp', '-f', $ujce_file, $java_file);
+		}
+    }
+} elsif ($CMD eq 'uninstall') {
+	for my $file (FILES) {
+		my $ujce_file = "$UJCE_DIR/$file";
+		my $java_file = "$SEC_LIB/$file";
+		if (are_these_files_identical($ujce_file, $java_file)) {
+			my $orig_file = "${java_file}.orig";
+			die("Cannot uninstall - missing original file for $java_file\n") if not -f $orig_file;
+			run_ok('mv', '-f', $orig_file, $java_file);
+		}
+    }
+} else {
+    die("Unsupported cmd: ${CMD}\n");
+}
+
+# all ok
+exit(0);
+
+sub run_ok {
+    print "run: @_\n";
+    if (system(@_) != 0) {
+	my $msg;
+	if ($? & 0xff) {
+	    $msg = 'killed by signal no ' . ($? & 0xff);
+	} else {
+	    $msg = 'failed with code ' . (($? >> 8) & 0xff);
+	}
+	die("@_ $msg\n");
+    }
+    return 1;
+}
+
+sub are_these_files_identical {
+	my ($a, $b) = @_;
+	my $a_digest = Digest::SHA->new->addfile($a)->hexdigest;
+	my $b_digest = Digest::SHA->new->addfile($b)->hexdigest;
+	return 1 if $a_digest eq $b_digest;
+	return 0;
+}
