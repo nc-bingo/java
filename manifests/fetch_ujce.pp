@@ -10,7 +10,7 @@ define java::fetch_ujce(
 
   $user               = 'root',
   $group              = 'root',
-  $timeout            = 300,
+  $timeout            = 30000,
   $cache_dir          = '/var/cache/medialibrary',
   $media_library_host = $::media_library_host,
 ) {

@@ -86,7 +86,7 @@ define java::install (
   $user                = 'root',
   $group               = 'root',
 
-  $timeout             = 300,
+  $timeout             = 30000,
 
   $current_symlink     = undef,
   $set_environment     = true,
